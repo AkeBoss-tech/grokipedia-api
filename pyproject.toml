@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grokipedia-api"
+version = "0.1.1"
+description = "A Python client for accessing Grokipedia content"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    {name = "Akash Dubey", email = "akashdub06@gmail.com"}
+]
+keywords = ["grokipedia", "wiki", "knowledge", "api", "client"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0; python_version>='3.10'",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+grokipedia = "grokipedia_api.cli:main"
+grokipedia-mcp = "grokipedia_api.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/AkeBoss-tech/grokipedia-api"
+Documentation = "https://github.com/AkeBoss-tech/grokipedia-api"
+Repository = "https://github.com/AkeBoss-tech/grokipedia-api"
+Issues = "https://github.com/AkeBoss-tech/grokipedia-api/issues"
+
+[tool.setuptools]
+packages = ["grokipedia_api"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]  # line too long, handled by black
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
