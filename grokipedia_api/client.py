@@ -4,6 +4,7 @@ import requests
 from typing import List, Dict, Optional, Any
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .exceptions import GrokipediaError, GrokipediaNotFoundError, GrokipediaAPIError, GrokipediaRateLimitError
+from .cache import FileCache
 
 
 class GrokipediaClient:
@@ -18,12 +19,20 @@ class GrokipediaClient:
     
     BASE_URL = "https://grokipedia.com"
     
-    def __init__(self, base_url: Optional[str] = None, timeout: int = 30):
+    def __init__(
+        self, 
+        base_url: Optional[str] = None, 
+        timeout: int = 30,
+        use_cache: bool = True,
+        cache_ttl: int = 604800  # 7 days in seconds
+    ):
         """Initialize the Grokipedia client.
         
         Args:
             base_url: Optional custom base URL (defaults to grokipedia.com)
             timeout: Request timeout in seconds (default: 30)
+            use_cache: Whether to use caching (default: True)
+            cache_ttl: Cache time-to-live in seconds (default: 7 days)
         """
         self.base_url = base_url or self.BASE_URL
         self.timeout = timeout
@@ -32,6 +41,11 @@ class GrokipediaClient:
             'User-Agent': 'grokipedia-api/0.1.0',
             'Accept': 'application/json'
         })
+        self.use_cache = use_cache
+        if use_cache:
+            self.cache = FileCache(ttl=cache_ttl)
+        else:
+            self.cache = None
     
     @retry(
         stop=stop_after_attempt(3),
@@ -62,6 +76,13 @@ class GrokipediaClient:
         Raises:
             GrokipediaError: If the search request fails
         """
+        # Try cache first if enabled
+        if self.use_cache and self.cache:
+            cache_key = f"search:{query}:{limit}:{offset}"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
         url = f"{self.base_url}/api/full-text-search"
         params = {
             "query": query,
@@ -77,7 +98,14 @@ class GrokipediaClient:
             if response.status_code == 429:
                 raise GrokipediaRateLimitError("Rate limit exceeded")
                 
-            return response.json()
+            result = response.json()
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                cache_key = f"search:{query}:{limit}:{offset}"
+                self.cache.set(cache_key, result)
+            
+            return result
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 raise GrokipediaNotFoundError(f"Search endpoint not found: {e}")
@@ -123,6 +151,13 @@ class GrokipediaClient:
             GrokipediaError: If the request fails
             GrokipediaNotFoundError: If the page is not found
         """
+        # Try cache first if enabled
+        if self.use_cache and self.cache:
+            cache_key = f"page:{slug}:{include_content}:{validate_links}"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
         url = f"{self.base_url}/api/page"
         params = {
             "slug": slug,
@@ -142,6 +177,11 @@ class GrokipediaClient:
             
             if not data.get("found", False):
                 raise GrokipediaNotFoundError(f"Page not found: {slug}")
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                cache_key = f"page:{slug}:{include_content}:{validate_links}"
+                self.cache.set(cache_key, data)
             
             return data
         except requests.exceptions.HTTPError as e:
