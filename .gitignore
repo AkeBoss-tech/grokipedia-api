@@ -138,3 +138,4 @@ scripts/*.py
 !scripts/__init__.py
 *.pyc
 
+venv_mcp/
