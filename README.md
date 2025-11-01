@@ -12,6 +12,9 @@ A Python client for accessing content from [Grokipedia](https://grokipedia.com/)
 - **Page Retrieval**: Get full page content, including headings, text, and citations
 - **Structured Data**: Access well-structured data with proper typing
 - **Easy to Use**: Simple and intuitive API
+- **Async Support**: Fast async/await API with aiohttp for concurrent operations
+- **Auto Retries**: Automatic retry logic with exponential backoff
+- **Rate Limit Handling**: Built-in rate limit detection and handling
 - **MCP Server**: Model Context Protocol server for AI integrations (Python 3.10+)
 - **CLI Support**: Command-line interface for quick access
 
@@ -23,12 +26,24 @@ A Python client for accessing content from [Grokipedia](https://grokipedia.com/)
 pip install grokipedia-api
 ```
 
-### With MCP Support (Python 3.10+)
+### With Additional Features
 
-For users who want MCP server functionality:
+For async support:
+
+```bash
+pip install grokipedia-api[async]
+```
+
+For MCP server functionality (Python 3.10+):
 
 ```bash
 pip install grokipedia-api[mcp]
+```
+
+For all features:
+
+```bash
+pip install grokipedia-api[all]
 ```
 
 Or install from source:
@@ -95,6 +110,50 @@ print(f"\nCitations: {len(citations)}")
 for citation in citations:
     print(f"- [{citation['id']}] {citation['title']}")
     print(f"  {citation['url']}")
+```
+
+### Async Usage
+
+For faster, concurrent operations with async/await:
+
+```python
+import asyncio
+from grokipedia_api import AsyncGrokipediaClient, search_many, get_many_pages
+
+async def main():
+    # Basic async usage
+    async with AsyncGrokipediaClient() as client:
+        results = await client.search("Python programming")
+        print(f"Found {len(results['results'])} results")
+        
+        page = await client.get_page("United_Petroleum")
+        print(f"Title: {page['page']['title']}")
+    
+    # Search multiple queries concurrently
+    queries = ["Python", "JavaScript", "Rust"]
+    all_results = await search_many(queries, limit=5)
+    print(f"Total results: {len(all_results)}")
+    
+    # Get multiple pages concurrently
+    slugs = ["United_Petroleum", "Python_(programming_language)"]
+    pages = await get_many_pages(slugs)
+    for page_data in pages:
+        print(f"✓ {page_data['page']['title']}")
+
+asyncio.run(main())
+```
+
+### Automatic Retries
+
+The client automatically retries failed requests with exponential backoff:
+
+```python
+from grokipedia_api import GrokipediaClient
+
+client = GrokipediaClient()
+
+# Automatically retries up to 3 times on network errors
+results = client.search("machine learning")
 ```
 
 ### Using Context Manager

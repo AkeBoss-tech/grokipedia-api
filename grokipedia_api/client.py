@@ -2,7 +2,8 @@
 
 import requests
 from typing import List, Dict, Optional, Any
-from .exceptions import GrokipediaError, GrokipediaNotFoundError, GrokipediaAPIError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from .exceptions import GrokipediaError, GrokipediaNotFoundError, GrokipediaAPIError, GrokipediaRateLimitError
 
 
 class GrokipediaClient:
@@ -32,6 +33,12 @@ class GrokipediaClient:
             'Accept': 'application/json'
         })
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
     def search(
         self,
         query: str,
@@ -39,6 +46,8 @@ class GrokipediaClient:
         offset: int = 0
     ) -> Dict[str, Any]:
         """Search for articles in Grokipedia.
+        
+        Automatically retries on network errors and rate limits.
         
         Args:
             query: Search query string
@@ -63,14 +72,27 @@ class GrokipediaClient:
         try:
             response = self.session.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
             return response.json()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 raise GrokipediaNotFoundError(f"Search endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
             raise GrokipediaAPIError(f"API error during search: {e}")
         except requests.exceptions.RequestException as e:
             raise GrokipediaError(f"Request error during search: {e}")
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
     def get_page(
         self,
         slug: str,
@@ -78,6 +100,8 @@ class GrokipediaClient:
         validate_links: bool = True
     ) -> Dict[str, Any]:
         """Get a specific page by its slug.
+        
+        Automatically retries on network errors and rate limits.
         
         Args:
             slug: Page slug (e.g., "United_Petroleum")
@@ -109,6 +133,11 @@ class GrokipediaClient:
         try:
             response = self.session.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
             data = response.json()
             
             if not data.get("found", False):
@@ -118,6 +147,8 @@ class GrokipediaClient:
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 raise GrokipediaNotFoundError(f"Page not found: {slug}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
             raise GrokipediaAPIError(f"API error retrieving page: {e}")
         except requests.exceptions.RequestException as e:
             raise GrokipediaError(f"Request error retrieving page: {e}")
