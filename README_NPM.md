@@ -4,7 +4,7 @@
 [![Node.js 14+](https://img.shields.io/badge/node-14%2B-brightgreen.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Node.js client for accessing content from [Grokipedia](https://grokipedia.com/), an open-source, comprehensive collection of all knowledge.
+A client for accessing content from [Grokipedia](https://grokipedia.com/), an open-source, comprehensive collection of all knowledge. Works in **Node.js** and **browsers** (React, Vue, vanilla JS, etc.).
 
 ## Features
 
@@ -27,6 +27,10 @@ Or with yarn:
 ```bash
 yarn add grokipedia-api
 ```
+
+## Browser Support
+
+This package works in both **Node.js** and **browsers**. Modern bundlers (webpack, Vite, etc.) will automatically use the browser build. For React applications, just install and import - it works out of the box!
 
 ## Quick Start
 
@@ -76,6 +80,98 @@ console.log(`Found ${results.results.length} results`);
 const page = await client.getPage('United_Petroleum', true);
 console.log(`Title: ${page.page.title}`);
 console.log(`Citations: ${page.page.citations?.length || 0}`);
+```
+
+### React Example
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { GrokipediaClient } from 'grokipedia-api';
+
+function GrokipediaSearch() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const client = new GrokipediaClient();
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    
+    setLoading(true);
+    try {
+      const searchResults = await client.search(query, 10);
+      setResults(searchResults.results);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search Grokipedia..."
+      />
+      <button onClick={handleSearch} disabled={loading}>
+        {loading ? 'Searching...' : 'Search'}
+      </button>
+      
+      <ul>
+        {results.map((result) => (
+          <li key={result.slug}>
+            <h3>{result.title}</h3>
+            <p>{result.snippet}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default GrokipediaSearch;
+```
+
+### Browser Script Tag (UMD)
+
+You can also use this package directly in the browser with a script tag. The UMD build includes all dependencies:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Grokipedia Browser Example</title>
+</head>
+<body>
+  <h1>Grokipedia Search</h1>
+  <input id="searchInput" type="text" placeholder="Search...">
+  <button id="searchBtn">Search</button>
+  <div id="results"></div>
+
+  <!-- Include the library -->
+  <script src="https://cdn.jsdelivr.net/npm/grokipedia-api@latest/dist/browser/grokipedia-api.umd.js"></script>
+  
+  <script>
+    const client = new GrokipediaAPI.GrokipediaClient();
+    
+    document.getElementById('searchBtn').addEventListener('click', async () => {
+      const query = document.getElementById('searchInput').value;
+      const resultsDiv = document.getElementById('results');
+      
+      try {
+        const results = await client.search(query, 10);
+        resultsDiv.innerHTML = results.results.map(r => 
+          `<div><h3>${r.title}</h3><p>${r.snippet}</p></div>`
+        ).join('');
+      } catch (error) {
+        resultsDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
 ```
 
 ### Async/Await Example
