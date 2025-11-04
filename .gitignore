@@ -139,3 +139,25 @@ scripts/*.py
 *.pyc
 
 venv_mcp/
+
+# Node.js / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log*
+.npm/
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+dist/
+build/
+*.js.map
+
+# Testing
+coverage/
+.nyc_output/
+.jest/

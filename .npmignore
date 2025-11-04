@@ -1,0 +1,62 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Build files
+tsconfig.json
+jest.config.js
+.eslintrc.js
+.prettierrc
+
+# Development files
+.vscode/
+.idea/
+*.log
+*.swp
+*.swo
+*~
+
+# Test files
+tests/
+test/
+**/*.test.ts
+**/*.spec.ts
+
+# Documentation
+*.md
+!README_NPM.md
+!CHANGELOG.md
+
+# Python files (if any)
+*.py
+__pycache__/
+*.pyc
+venv/
+venv_mcp/
+*.egg-info/
+build/
+
+# Python package artifacts in dist/ (keep only JS/TS files)
+dist/*.whl
+dist/*.tar.gz
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Environment
+.env
+.env.local
+
+# IDE
+.DS_Store
+*.suo
+*.user
+
+
