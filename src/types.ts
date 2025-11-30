@@ -76,3 +76,37 @@ export interface ClientOptions {
   useCache?: boolean;
   cacheTtl?: number;
 }
+
+export interface SupportingEvidence {
+  url?: string;
+  description?: string;
+}
+
+export interface EditRequest {
+  supportingEvidence?: SupportingEvidence[];
+  id: string;
+  slug: string;
+  userId: string;
+  status: string;
+  type: string;
+  summary: string;
+  originalContent: string;
+  proposedContent: string;
+  sectionTitle: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewReason?: string;
+  upvoteCount: number;
+  downvoteCount: number;
+  userVote: string;
+  editStartHeader: string;
+  editEndHeader: string;
+}
+
+export interface EditHistoryResponse {
+  editRequests: EditRequest[];
+  totalCount: number;
+  hasMore: boolean;
+}

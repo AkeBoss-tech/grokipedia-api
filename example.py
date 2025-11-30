@@ -61,8 +61,24 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
     
-    # Example 4: Using context manager
-    print("\n4. Using context manager for automatic cleanup...")
+    # Example 4: Get edit history for a page
+    print("\n4. Getting edit history for 'United_States'...")
+    try:
+        edit_history = client.list_edit_requests_by_slug("United_States", limit=5)
+        print(f"Total edit requests: {edit_history.get('totalCount', 0)}")
+        print(f"Has more: {edit_history.get('hasMore', False)}")
+        print(f"\nShowing first {len(edit_history.get('editRequests', []))} edit requests:")
+        for i, edit_request in enumerate(edit_history.get('editRequests', [])[:5], 1):
+            print(f"\n  {i}. Status: {edit_request.get('status', 'Unknown')}")
+            print(f"     Summary: {edit_request.get('summary', 'N/A')}")
+            print(f"     Type: {edit_request.get('type', 'Unknown')}")
+            print(f"     Section: {edit_request.get('sectionTitle', 'N/A')}")
+            print(f"     Created: {edit_request.get('createdAt', 'N/A')}")
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    # Example 5: Using context manager
+    print("\n5. Using context manager for automatic cleanup...")
     with GrokipediaClient() as client:
         results = client.search("test", limit=2)
         print(f"Found {len(results['results'])} test results")

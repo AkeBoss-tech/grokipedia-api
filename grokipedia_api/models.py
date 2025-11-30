@@ -135,6 +135,40 @@ if PYDANTIC_AVAILABLE:
         """Search response with results."""
         results: List[SearchResult]
         total_count: Optional[int] = None
+    
+    class SupportingEvidence(BaseModel):
+        """Represents supporting evidence for an edit request."""
+        url: Optional[str] = None
+        description: Optional[str] = None
+    
+    class EditRequest(BaseModel):
+        """Represents an edit request for a Grokipedia page."""
+        supportingEvidence: List[SupportingEvidence] = Field(default_factory=list)
+        id: str
+        slug: str
+        userId: str
+        status: str
+        type: str
+        summary: str
+        originalContent: str
+        proposedContent: str
+        sectionTitle: str
+        createdAt: str
+        updatedAt: str
+        reviewedBy: Optional[str] = None
+        reviewedAt: Optional[str] = None
+        reviewReason: Optional[str] = None
+        upvoteCount: int = 0
+        downvoteCount: int = 0
+        userVote: str = "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"
+        editStartHeader: str
+        editEndHeader: str
+    
+    class EditHistoryResponse(BaseModel):
+        """Response containing edit history for a page."""
+        editRequests: List[EditRequest] = Field(default_factory=list)
+        totalCount: int = 0
+        hasMore: bool = False
 
 else:
     # Fallback to dataclasses when Pydantic is not available
@@ -267,3 +301,97 @@ else:
         """Search response with results."""
         results: List[SearchResult]
         total_count: Optional[int] = None
+    
+    @dataclass
+    class SupportingEvidence:
+        """Represents supporting evidence for an edit request."""
+        url: Optional[str] = None
+        description: Optional[str] = None
+    
+    @dataclass
+    class EditRequest:
+        """Represents an edit request for a Grokipedia page."""
+        supporting_evidence: List['SupportingEvidence'] = field(default_factory=list)
+        id: str
+        slug: str
+        user_id: str
+        status: str
+        type: str
+        summary: str
+        original_content: str
+        proposed_content: str
+        section_title: str
+        created_at: str
+        updated_at: str
+        reviewed_by: Optional[str] = None
+        reviewed_at: Optional[str] = None
+        review_reason: Optional[str] = None
+        upvote_count: int = 0
+        downvote_count: int = 0
+        user_vote: str = "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"
+        edit_start_header: str
+        edit_end_header: str
+        
+        @classmethod
+        def from_dict(cls, data: Dict[str, Any]) -> 'EditRequest':
+            """Create an EditRequest instance from a dictionary.
+            
+            Args:
+                data: Dictionary containing edit request data
+                
+            Returns:
+                EditRequest instance
+            """
+            supporting_evidence = [
+                SupportingEvidence(**ev) for ev in data.get("supportingEvidence", [])
+            ]
+            
+            return cls(
+                supporting_evidence=supporting_evidence,
+                id=data.get("id", ""),
+                slug=data.get("slug", ""),
+                user_id=data.get("userId", ""),
+                status=data.get("status", ""),
+                type=data.get("type", ""),
+                summary=data.get("summary", ""),
+                original_content=data.get("originalContent", ""),
+                proposed_content=data.get("proposedContent", ""),
+                section_title=data.get("sectionTitle", ""),
+                created_at=data.get("createdAt", ""),
+                updated_at=data.get("updatedAt", ""),
+                reviewed_by=data.get("reviewedBy"),
+                reviewed_at=data.get("reviewedAt"),
+                review_reason=data.get("reviewReason"),
+                upvote_count=data.get("upvoteCount", 0),
+                downvote_count=data.get("downvoteCount", 0),
+                user_vote=data.get("userVote", "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"),
+                edit_start_header=data.get("editStartHeader", ""),
+                edit_end_header=data.get("editEndHeader", "")
+            )
+    
+    @dataclass
+    class EditHistoryResponse:
+        """Response containing edit history for a page."""
+        edit_requests: List['EditRequest'] = field(default_factory=list)
+        total_count: int = 0
+        has_more: bool = False
+        
+        @classmethod
+        def from_dict(cls, data: Dict[str, Any]) -> 'EditHistoryResponse':
+            """Create an EditHistoryResponse instance from a dictionary.
+            
+            Args:
+                data: Dictionary containing edit history response data
+                
+            Returns:
+                EditHistoryResponse instance
+            """
+            edit_requests = [
+                EditRequest.from_dict(er) for er in data.get("editRequests", [])
+            ]
+            
+            return cls(
+                edit_requests=edit_requests,
+                total_count=data.get("totalCount", 0),
+                has_more=data.get("hasMore", False)
+            )

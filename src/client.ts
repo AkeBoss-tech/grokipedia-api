@@ -8,6 +8,7 @@ import {
   PageResponse,
   SearchResult,
   ClientOptions,
+  EditHistoryResponse,
 } from "./types";
 import {
   GrokipediaError,
@@ -253,6 +254,61 @@ export class GrokipediaClient {
   ): Promise<SearchResult[]> {
     const results = await this.search(query, limit);
     return results.results || [];
+  }
+
+  /**
+   * List edit requests for a specific page by its slug
+   */
+  async listEditRequestsBySlug(
+    slug: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<EditHistoryResponse> {
+    return this.retry(async () => {
+      // Try cache first if enabled
+      if (this.useCache && this.cache) {
+        const cacheKey = `edit_requests:${slug}:${limit}:${offset}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached !== null) {
+          return cached;
+        }
+      }
+
+      try {
+        const response = await this.axiosInstance.get(
+          "/api/list-edit-requests-by-slug",
+          {
+            params: {
+              slug,
+              limit,
+              offset,
+            },
+          },
+        );
+
+        const result: EditHistoryResponse = response.data;
+
+        // Cache result if enabled
+        if (this.useCache && this.cache) {
+          const cacheKey = `edit_requests:${slug}:${limit}:${offset}`;
+          this.cache.set(cacheKey, result);
+        }
+
+        return result;
+      } catch (error) {
+        // If it's already a Grokipedia error, re-throw it
+        if (
+          error instanceof GrokipediaError ||
+          error instanceof GrokipediaNotFoundError ||
+          error instanceof GrokipediaAPIError ||
+          error instanceof GrokipediaRateLimitError
+        ) {
+          throw error;
+        }
+        this.handleError(error as AxiosError, "listEditRequestsBySlug", slug);
+        throw error;
+      }
+    });
   }
 
   /**

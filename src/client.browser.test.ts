@@ -38,6 +38,7 @@ describe('GrokipediaClient (Browser)', () => {
       expect(typeof client.search).toBe('function');
       expect(typeof client.getPage).toBe('function');
       expect(typeof client.searchPages).toBe('function');
+      expect(typeof client.listEditRequestsBySlug).toBe('function');
       expect(typeof client.clearCache).toBe('function');
       expect(typeof client.close).toBe('function');
     });
@@ -58,6 +59,7 @@ describe('GrokipediaClient (Browser)', () => {
       expect(typeof client.search).toBe('function');
       expect(typeof client.getPage).toBe('function');
       expect(typeof client.searchPages).toBe('function');
+      expect(typeof client.listEditRequestsBySlug).toBe('function');
       expect(typeof client.clearCache).toBe('function');
       expect(typeof client.close).toBe('function');
     });

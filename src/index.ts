@@ -22,6 +22,9 @@ export type {
   SearchResult,
   SearchResponse,
   ClientOptions,
+  SupportingEvidence,
+  EditRequest,
+  EditHistoryResponse,
 } from "./types";
 
 // Default export for convenience

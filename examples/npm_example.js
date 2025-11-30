@@ -42,11 +42,25 @@ async function main() {
     console.log(`   Images: ${page.page.images?.length || 0}\n`);
 
     // 3. Search pages (returns just results array)
-    console.log('3. Searching for "machine learning" (first 3 results)...');
+    console.log('4. Searching for "machine learning" (first 3 results)...');
     const pages = await client.searchPages('machine learning', 3);
     pages.forEach((page, index) => {
       console.log(`   ${index + 1}. ${page.title}`);
       console.log(`      Relevance: ${page.relevanceScore || 'N/A'}`);
+    });
+
+    // 4. Get edit history for a page
+    console.log('\n5. Getting edit history for "United_States"...');
+    const editHistory = await client.listEditRequestsBySlug('United_States', 5);
+    console.log(`   Total edit requests: ${editHistory.totalCount}`);
+    console.log(`   Has more: ${editHistory.hasMore}`);
+    console.log(`   Showing first ${editHistory.editRequests.length} requests:\n`);
+    editHistory.editRequests.forEach((editRequest, index) => {
+      console.log(`   ${index + 1}. Status: ${editRequest.status}`);
+      console.log(`      Summary: ${editRequest.summary}`);
+      console.log(`      Type: ${editRequest.type}`);
+      console.log(`      Section: ${editRequest.sectionTitle}`);
+      console.log(`      Created: ${editRequest.createdAt}\n`);
     });
 
     console.log('\n✓ Example completed successfully!');

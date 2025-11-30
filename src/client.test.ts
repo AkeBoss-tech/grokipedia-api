@@ -92,6 +92,31 @@ describe('GrokipediaClient', () => {
     }, 30000);
   });
 
+  describe('List Edit Requests', () => {
+    it('should list edit requests for a page', async () => {
+      const editHistory = await client.listEditRequestsBySlug('United_States', 5);
+      expect(editHistory).toHaveProperty('editRequests');
+      expect(editHistory).toHaveProperty('totalCount');
+      expect(editHistory).toHaveProperty('hasMore');
+      expect(Array.isArray(editHistory.editRequests)).toBe(true);
+      expect(typeof editHistory.totalCount).toBe('number');
+      expect(typeof editHistory.hasMore).toBe('boolean');
+    }, 30000);
+
+    it('should return edit requests with correct structure', async () => {
+      const editHistory = await client.listEditRequestsBySlug('United_States', 1);
+      if (editHistory.editRequests.length > 0) {
+        const editRequest = editHistory.editRequests[0];
+        expect(editRequest).toHaveProperty('id');
+        expect(editRequest).toHaveProperty('slug');
+        expect(editRequest).toHaveProperty('status');
+        expect(editRequest).toHaveProperty('summary');
+        expect(typeof editRequest.id).toBe('string');
+        expect(typeof editRequest.slug).toBe('string');
+      }
+    }, 30000);
+  });
+
   describe('Cache Management', () => {
     it('should clear cache', () => {
       const cachedClient = new GrokipediaClient({ useCache: true });

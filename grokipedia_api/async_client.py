@@ -211,6 +211,61 @@ if ASYNC_AVAILABLE:
             results = await self.search(query, limit=limit)
             return results.get("results", [])
         
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception_type((GrokipediaError, aiohttp.ClientError)),
+            reraise=True
+        )
+        async def list_edit_requests_by_slug(
+            self,
+            slug: str,
+            limit: int = 10,
+            offset: int = 0
+        ) -> Dict[str, Any]:
+            """List edit requests for a specific page by its slug.
+            
+            Automatically retries on network errors and rate limits.
+            
+            Args:
+                slug: Page slug (e.g., "United_States")
+                limit: Maximum number of edit requests to return (default: 10)
+                offset: Number of results to skip for pagination (default: 0)
+            
+            Returns:
+                Dictionary containing edit history with the following keys:
+                - editRequests: List of edit request dictionaries
+                - totalCount: Total number of edit requests
+                - hasMore: Boolean indicating if there are more results
+                
+            Raises:
+                GrokipediaError: If the request fails
+            """
+            await self._ensure_session()
+            url = f"{self.base_url}/api/list-edit-requests-by-slug"
+            params = {
+                "slug": slug,
+                "limit": limit,
+                "offset": offset
+            }
+            
+            try:
+                async with self.session.get(url, params=params) as response:
+                    # Check for rate limiting
+                    if response.status == 429:
+                        raise GrokipediaRateLimitError("Rate limit exceeded")
+                    
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientResponseError as e:
+                if e.status == 404:
+                    raise GrokipediaNotFoundError(f"Edit requests not found for slug: {slug}")
+                if e.status == 429:
+                    raise GrokipediaRateLimitError("Rate limit exceeded")
+                raise GrokipediaAPIError(f"API error retrieving edit requests: {e}")
+            except aiohttp.ClientError as e:
+                raise GrokipediaError(f"Request error retrieving edit requests: {e}")
+        
         async def close(self):
             """Close the session."""
             if self.session:

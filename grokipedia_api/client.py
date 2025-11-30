@@ -214,6 +214,75 @@ class GrokipediaClient:
         results = self.search(query, limit=limit)
         return results.get("results", [])
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
+    def list_edit_requests_by_slug(
+        self,
+        slug: str,
+        limit: int = 10,
+        offset: int = 0
+    ) -> Dict[str, Any]:
+        """List edit requests for a specific page by its slug.
+        
+        Automatically retries on network errors and rate limits.
+        
+        Args:
+            slug: Page slug (e.g., "United_States")
+            limit: Maximum number of edit requests to return (default: 10)
+            offset: Number of results to skip for pagination (default: 0)
+        
+        Returns:
+            Dictionary containing edit history with the following keys:
+            - editRequests: List of edit request dictionaries
+            - totalCount: Total number of edit requests
+            - hasMore: Boolean indicating if there are more results
+            
+        Raises:
+            GrokipediaError: If the request fails
+        """
+        # Try cache first if enabled
+        if self.use_cache and self.cache:
+            cache_key = f"edit_requests:{slug}:{limit}:{offset}"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
+        url = f"{self.base_url}/api/list-edit-requests-by-slug"
+        params = {
+            "slug": slug,
+            "limit": limit,
+            "offset": offset
+        }
+        
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
+            data = response.json()
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                cache_key = f"edit_requests:{slug}:{limit}:{offset}"
+                self.cache.set(cache_key, data)
+            
+            return data
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Edit requests not found for slug: {slug}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error retrieving edit requests: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error retrieving edit requests: {e}")
+    
     def __enter__(self):
         """Context manager entry."""
         return self

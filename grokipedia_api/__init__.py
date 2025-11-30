@@ -14,7 +14,10 @@ from .models import (
     PageMetadata,
     PageStats,
     SearchResult,
-    SearchResponse
+    SearchResponse,
+    SupportingEvidence,
+    EditRequest,
+    EditHistoryResponse
 )
 from .export import to_markdown, to_json, to_html, to_plain_text, export_to_file
 from .analysis import analyze_page, get_sections, extract_keywords
@@ -46,6 +49,9 @@ __all__ = [
     "PageStats",
     "SearchResult",
     "SearchResponse",
+    "SupportingEvidence",
+    "EditRequest",
+    "EditHistoryResponse",
     "to_markdown",
     "to_json",
     "to_html",
