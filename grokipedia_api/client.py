@@ -220,6 +220,191 @@ class GrokipediaClient:
         retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
         reraise=True
     )
+    def typeahead(
+        self,
+        query: str,
+        limit: int = 5
+    ) -> Dict[str, Any]:
+        """Get typeahead/autocomplete suggestions for search.
+        
+        Automatically retries on network errors and rate limits.
+        
+        Args:
+            query: Search query string for suggestions
+            limit: Maximum number of suggestions to return (default: 5)
+        
+        Returns:
+            Dictionary containing typeahead suggestions
+            
+        Raises:
+            GrokipediaError: If the request fails
+        """
+        # Try cache first if enabled
+        if self.use_cache and self.cache:
+            cache_key = f"typeahead:{query}:{limit}"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
+        url = f"{self.base_url}/api/typeahead"
+        params = {
+            "query": query,
+            "limit": limit
+        }
+        
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
+            result = response.json()
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                cache_key = f"typeahead:{query}:{limit}"
+                self.cache.set(cache_key, result)
+            
+            return result
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Typeahead endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error during typeahead: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error during typeahead: {e}")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
+    def get_constants(self) -> Dict[str, Any]:
+        """Get application constants and configuration.
+        
+        Automatically retries on network errors and rate limits.
+        
+        Returns:
+            Dictionary containing application constants
+            
+        Raises:
+            GrokipediaError: If the request fails
+        """
+        # Try cache first if enabled
+        if self.use_cache and self.cache:
+            cache_key = "constants"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
+        url = f"{self.base_url}/api/constants"
+        
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
+            result = response.json()
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                cache_key = "constants"
+                self.cache.set(cache_key, result)
+            
+            return result
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Constants endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error retrieving constants: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error retrieving constants: {e}")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
+    def list_edit_requests(
+        self,
+        limit: int = 20,
+        status: Optional[List[str]] = None,
+        exclude_user_id: Optional[List[str]] = None,
+        include_counts: bool = True
+    ) -> Dict[str, Any]:
+        """List all edit requests with optional filtering.
+        
+        Automatically retries on network errors and rate limits.
+        
+        Args:
+            limit: Maximum number of edit requests to return (default: 20)
+            status: List of statuses to filter by (e.g., ["EDIT_REQUEST_STATUS_APPROVED"])
+            exclude_user_id: List of user IDs to exclude from results
+            include_counts: Whether to include count information (default: True)
+        
+        Returns:
+            Dictionary containing edit requests and metadata
+            
+        Raises:
+            GrokipediaError: If the request fails
+        """
+        # Try cache first if enabled
+        cache_key = f"edit_requests:{limit}:{status}:{exclude_user_id}:{include_counts}"
+        if self.use_cache and self.cache:
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+        
+        url = f"{self.base_url}/api/list-edit-requests"
+        params = {
+            "limit": limit,
+            "includeCounts": str(include_counts).lower()
+        }
+        
+        if status:
+            params["status"] = status
+        if exclude_user_id:
+            params["excludeUserId"] = exclude_user_id
+        
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+                
+            data = response.json()
+            
+            # Cache result if enabled
+            if self.use_cache and self.cache:
+                self.cache.set(cache_key, data)
+            
+            return data
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Edit requests endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error retrieving edit requests: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error retrieving edit requests: {e}")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
     def list_edit_requests_by_slug(
         self,
         slug: str,
