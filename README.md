@@ -73,7 +73,7 @@ results = client.search("Python programming")
 print(f"Found {len(results['results'])} results")
 
 # Get a specific page
-page = client.get_page("United_Petroleum")
+page = client.get_page("Python_(programming_language)")
 print(f"Title: {page['page']['title']}")
 print(f"Content: {page['page']['content'][:200]}...")
 ```
@@ -102,7 +102,7 @@ from grokipedia_api import GrokipediaClient
 client = GrokipediaClient()
 
 # Get full page with all content
-page = client.get_page("United_Petroleum", include_content=True)
+page = client.get_page("Python_(programming_language)", include_content=True)
 
 # Access structured data
 title = page['page']['title']
@@ -130,7 +130,7 @@ async def main():
         results = await client.search("Python programming")
         print(f"Found {len(results['results'])} results")
         
-        page = await client.get_page("United_Petroleum")
+        page = await client.get_page("Python_(programming_language)")
         print(f"Title: {page['page']['title']}")
     
     # Search multiple queries concurrently
@@ -139,7 +139,7 @@ async def main():
     print(f"Total results: {len(all_results)}")
     
     # Get multiple pages concurrently
-    slugs = ["United_Petroleum", "Python_(programming_language)"]
+    slugs = ["Python_(programming_language)", "Guido_van_Rossum"]
     pages = await get_many_pages(slugs)
     for page_data in pages:
         print(f"✓ {page_data['page']['title']}")
@@ -177,10 +177,10 @@ The server exposes tools for searching and retrieving Grokipedia content via the
 grokipedia search "Python programming"
 
 # Get a specific page
-grokipedia get "United_Petroleum" --citations
+grokipedia get "Python_(programming_language)" --citations
 
 # Get full content
-grokipedia get "United_Petroleum" --full
+grokipedia get "Python_(programming_language)" --full
 ```
 
 ### Python API Reference
@@ -203,7 +203,8 @@ Search for articles in Grokipedia.
 **Returns:**
 - Dictionary containing:
   - `results`: List of search result dictionaries
-  - `total_count`: Total number of results (if available)
+  - `totalCount`: Total number of results (live API key)
+  - `total_count`: Stable alias for `totalCount`
 
 **Example:**
 ```python
@@ -215,9 +216,9 @@ results = client.search("Python programming", limit=20)
 Get a specific page by its slug.
 
 **Parameters:**
-- `slug` (str): Page slug (e.g., "United_Petroleum")
+- `slug` (str): Page slug (e.g., "Python_(programming_language)")
 - `include_content` (bool): Whether to include full content (default: True)
-- `validate_links` (bool): Whether to validate links (default: True)
+- `validate_links` (bool): Backward-compatible parameter retained for API stability; currently ignored by the live `page-preview` endpoint
 
 **Returns:**
 - Dictionary containing:
@@ -227,6 +228,25 @@ Get a specific page by its slug.
 **Example:**
 ```python
 page = client.get_page("Python_(programming_language)")
+```
+
+**`typeahead(query)`**
+
+Get fast typeahead suggestions from the live Grokipedia API.
+
+**Example:**
+```python
+suggestions = client.typeahead("Pyth")
+```
+
+**`get_stats()`**
+
+Get aggregate Grokipedia site statistics.
+
+**Example:**
+```python
+stats = client.get_stats()
+print(stats["totalPages"])
 ```
 
 **`search_pages(query, limit=12)`**
@@ -305,7 +325,7 @@ client.search('Python programming')
   });
 
 // Get a specific page
-client.getPage('United_Petroleum')
+client.getPage('Python_(programming_language)')
   .then(page => {
     console.log(`Title: ${page.page.title}`);
     console.log(`Content: ${page.page.content.substring(0, 200)}...`);
@@ -327,7 +347,7 @@ const results = await client.search('machine learning', 20);
 console.log(`Found ${results.results.length} results`);
 
 // Get a specific page
-const page = await client.getPage('United_Petroleum', true);
+const page = await client.getPage('Python_(programming_language)', true);
 console.log(`Title: ${page.page.title}`);
 console.log(`Citations: ${page.page.citations?.length || 0}`);
 ```
@@ -343,7 +363,7 @@ async function main() {
   try {
     // Search with pagination
     const results = await client.search('machine learning', 20, 0);
-    console.log(`Total results: ${results.total_count || 'unknown'}`);
+    console.log(`Total results: ${results.totalCount ?? results.total_count ?? 'unknown'}`);
     
     for (const result of results.results) {
       console.log(`- ${result.title}`);
@@ -352,7 +372,7 @@ async function main() {
     }
     
     // Get full page content
-    const page = await client.getPage('United_Petroleum', true);
+    const page = await client.getPage('Python_(programming_language)', true);
     console.log(`\nArticle: ${page.page.title}`);
     console.log(`\nCitations: ${page.page.citations?.length || 0}`);
     
@@ -436,7 +456,7 @@ const results = await client.search('Python programming', 20);
 Get a specific page by its slug.
 
 **Parameters:**
-- `slug` (string): Page slug (e.g., `"United_Petroleum"`)
+- `slug` (string): Page slug (e.g., `"Python_(programming_language)"`)
 - `includeContent` (boolean, optional): Whether to include full content (default: `true`)
 - `validateLinks` (boolean, optional): Whether to validate links (default: `true`)
 
@@ -613,6 +633,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 If you encounter any issues or have questions, please open an issue on [GitHub](https://github.com/AkeBoss-tech/grokipedia-api/issues).
 
 ## Changelog
+
+### 0.3.1 (Python)
+- Fixed page retrieval to use Grokipedia's live `/api/page-preview` endpoint
+- Added `typeahead()` and `get_stats()` helpers to the Python client
+- Normalized search responses to expose both `totalCount` and `total_count`
+- Relaxed edit-history model parsing to match current live API responses
 
 ### 0.3.0 (Python)
 - Added async client support

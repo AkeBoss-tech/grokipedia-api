@@ -55,7 +55,7 @@ client.search('Python programming')
   });
 
 // Get a specific page
-client.getPage('United_Petroleum')
+client.getPage('Python_(programming_language)')
   .then(page => {
     console.log(`Title: ${page.page.title}`);
     console.log(`Content: ${page.page.content.substring(0, 200)}...`);
@@ -77,7 +77,7 @@ const results = await client.search('machine learning', 20);
 console.log(`Found ${results.results.length} results`);
 
 // Get a specific page
-const page = await client.getPage('United_Petroleum', true);
+const page = await client.getPage('Python_(programming_language)', true);
 console.log(`Title: ${page.page.title}`);
 console.log(`Citations: ${page.page.citations?.length || 0}`);
 ```
@@ -185,7 +185,7 @@ async function main() {
   try {
     // Search with pagination
     const results = await client.search('machine learning', 20, 0);
-    console.log(`Total results: ${results.total_count || 'unknown'}`);
+    console.log(`Total results: ${results.totalCount ?? results.total_count ?? 'unknown'}`);
     
     for (const result of results.results) {
       console.log(`- ${result.title}`);
@@ -194,7 +194,7 @@ async function main() {
     }
     
     // Get full page content
-    const page = await client.getPage('United_Petroleum', true);
+    const page = await client.getPage('Python_(programming_language)', true);
     console.log(`\nArticle: ${page.page.title}`);
     console.log(`\nCitations: ${page.page.citations?.length || 0}`);
     
@@ -278,7 +278,7 @@ const results = await client.search('Python programming', 20);
 Get a specific page by its slug.
 
 **Parameters:**
-- `slug` (string): Page slug (e.g., `"United_Petroleum"`)
+- `slug` (string): Page slug (e.g., `"Python_(programming_language)"`)
 - `includeContent` (boolean, optional): Whether to include full content (default: `true`)
 - `validateLinks` (boolean, optional): Whether to validate links (default: `true`)
 

@@ -1,7 +1,7 @@
 """Tests for data models."""
 
 import pytest
-from grokipedia_api.models import Page, Citation, Image, SearchResult, PageMetadata, PageStats
+from grokipedia_api.models import Page, Citation, Image, SearchResult, SearchResponse, EditHistoryResponse
 
 
 def test_search_result_from_dict():
@@ -108,6 +108,45 @@ def test_page_from_dict():
     assert page.stats is not None
 
 
+def test_search_response_from_live_shape():
+    """SearchResponse should understand live Grokipedia keys."""
+    response = SearchResponse.from_dict({
+        "results": [{"title": "Python", "slug": "Python", "snippet": "..."}],
+        "totalCount": 42,
+        "searchTimeMs": 4.2,
+        "facets": [],
+    })
+
+    assert response.totalCount == 42
+    assert response.total_count == 42
+    assert response.searchTimeMs == 4.2
+
+
+def test_edit_history_response_from_live_shape():
+    """Edit history parsing should tolerate missing optional fields and int timestamps."""
+    history = EditHistoryResponse.from_dict({
+        "editRequests": [{
+            "id": "1",
+            "slug": "Python_(programming_language)",
+            "userId": "user-1",
+            "status": "APPROVED",
+            "type": 1,
+            "summary": "summary",
+            "originalContent": "",
+            "proposedContent": "",
+            "sectionTitle": "",
+            "createdAt": 1774552725,
+            "updatedAt": 1774552818,
+            "upvoteCount": 0,
+            "downvoteCount": 0,
+        }],
+        "totalCount": 1,
+        "hasMore": False,
+    })
+
+    assert history.totalCount == 1
+    assert history.editRequests[0].slug == "Python_(programming_language)"
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
-

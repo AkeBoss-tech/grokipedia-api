@@ -3,6 +3,7 @@
 try:
     import aiohttp
     import asyncio
+    from copy import deepcopy
     from typing import List, Dict, Optional, Any
     from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
     from .exceptions import (
@@ -11,6 +12,7 @@ try:
         GrokipediaAPIError,
         GrokipediaRateLimitError
     )
+    from .version import __version__
     ASYNC_AVAILABLE = True
 except ImportError:
     ASYNC_AVAILABLE = False
@@ -30,6 +32,11 @@ if ASYNC_AVAILABLE:
         """
         
         BASE_URL = "https://grokipedia.com"
+        SEARCH_ENDPOINT = "/api/full-text-search"
+        TYPEAHEAD_ENDPOINT = "/api/typeahead"
+        PAGE_ENDPOINT = "/api/page-preview"
+        EDIT_REQUESTS_ENDPOINT = "/api/list-edit-requests-by-slug"
+        STATS_ENDPOINT = "/api/stats"
         
         def __init__(self, base_url: Optional[str] = None, timeout: int = 60):
             """Initialize the async Grokipedia client.
@@ -47,7 +54,7 @@ if ASYNC_AVAILABLE:
             self.session = aiohttp.ClientSession(
                 timeout=self.timeout,
                 headers={
-                    'User-Agent': 'grokipedia-api/0.1.1',
+                    'User-Agent': f'grokipedia-api/{__version__}',
                     'Accept': 'application/json'
                 }
             )
@@ -65,7 +72,7 @@ if ASYNC_AVAILABLE:
                 self.session = aiohttp.ClientSession(
                     timeout=self.timeout,
                     headers={
-                        'User-Agent': 'grokipedia-api/0.1.1',
+                        'User-Agent': f'grokipedia-api/{__version__}',
                         'Accept': 'application/json'
                     }
                 )
@@ -94,13 +101,14 @@ if ASYNC_AVAILABLE:
             Returns:
                 Dictionary containing search results with the following keys:
                 - results: List of search result dictionaries
-                - total_count: Total number of results (if available)
+                - totalCount: Total number of results from the live API
+                - total_count: Stable alias for totalCount
                 
             Raises:
                 GrokipediaError: If the search request fails
             """
             await self._ensure_session()
-            url = f"{self.base_url}/api/full-text-search"
+            url = f"{self.base_url}{self.SEARCH_ENDPOINT}"
             params = {
                 "query": query,
                 "limit": limit,
@@ -114,7 +122,7 @@ if ASYNC_AVAILABLE:
                         raise GrokipediaRateLimitError("Rate limit exceeded")
                     
                     response.raise_for_status()
-                    return await response.json()
+                    return self._normalize_search_response(await response.json())
             except aiohttp.ClientResponseError as e:
                 if e.status == 404:
                     raise GrokipediaNotFoundError(f"Search endpoint not found: {e}")
@@ -141,7 +149,7 @@ if ASYNC_AVAILABLE:
             Automatically retries on network errors and rate limits.
             
             Args:
-                slug: Page slug (e.g., "United_Petroleum")
+                slug: Page slug (e.g., "Python_(programming_language)")
                 include_content: Whether to include full content (default: True)
                 validate_links: Whether to validate links (default: True)
             
@@ -161,11 +169,9 @@ if ASYNC_AVAILABLE:
                 GrokipediaNotFoundError: If the page is not found
             """
             await self._ensure_session()
-            url = f"{self.base_url}/api/page"
+            url = f"{self.base_url}{self.PAGE_ENDPOINT}"
             params = {
                 "slug": slug,
-                "includeContent": str(include_content).lower(),
-                "validateLinks": str(validate_links).lower()
             }
             
             try:
@@ -179,7 +185,11 @@ if ASYNC_AVAILABLE:
                     
                     if not data.get("found", False):
                         raise GrokipediaNotFoundError(f"Page not found: {slug}")
-                    
+
+                    if not include_content:
+                        data = deepcopy(data)
+                        data.setdefault("page", {})["content"] = ""
+
                     return data
             except aiohttp.ClientResponseError as e:
                 if e.status == 404:
@@ -210,6 +220,60 @@ if ASYNC_AVAILABLE:
             """
             results = await self.search(query, limit=limit)
             return results.get("results", [])
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception_type((GrokipediaError, aiohttp.ClientError)),
+            reraise=True
+        )
+        async def typeahead(self, query: str) -> Dict[str, Any]:
+            """Get typeahead suggestions for a search query."""
+            await self._ensure_session()
+            url = f"{self.base_url}{self.TYPEAHEAD_ENDPOINT}"
+
+            try:
+                async with self.session.get(url, params={"query": query}) as response:
+                    if response.status == 429:
+                        raise GrokipediaRateLimitError("Rate limit exceeded")
+
+                    response.raise_for_status()
+                    return self._normalize_search_response(await response.json())
+            except aiohttp.ClientResponseError as e:
+                if e.status == 404:
+                    raise GrokipediaNotFoundError(f"Typeahead endpoint not found: {e}")
+                if e.status == 429:
+                    raise GrokipediaRateLimitError("Rate limit exceeded")
+                raise GrokipediaAPIError(f"API error during typeahead: {e}")
+            except aiohttp.ClientError as e:
+                raise GrokipediaError(f"Request error during typeahead: {e}")
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception_type((GrokipediaError, aiohttp.ClientError)),
+            reraise=True
+        )
+        async def get_stats(self) -> Dict[str, Any]:
+            """Get aggregate Grokipedia site statistics."""
+            await self._ensure_session()
+            url = f"{self.base_url}{self.STATS_ENDPOINT}"
+
+            try:
+                async with self.session.get(url) as response:
+                    if response.status == 429:
+                        raise GrokipediaRateLimitError("Rate limit exceeded")
+
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientResponseError as e:
+                if e.status == 404:
+                    raise GrokipediaNotFoundError(f"Stats endpoint not found: {e}")
+                if e.status == 429:
+                    raise GrokipediaRateLimitError("Rate limit exceeded")
+                raise GrokipediaAPIError(f"API error retrieving stats: {e}")
+            except aiohttp.ClientError as e:
+                raise GrokipediaError(f"Request error retrieving stats: {e}")
         
         @retry(
             stop=stop_after_attempt(3),
@@ -242,7 +306,7 @@ if ASYNC_AVAILABLE:
                 GrokipediaError: If the request fails
             """
             await self._ensure_session()
-            url = f"{self.base_url}/api/list-edit-requests-by-slug"
+            url = f"{self.base_url}{self.EDIT_REQUESTS_ENDPOINT}"
             params = {
                 "slug": slug,
                 "limit": limit,
@@ -270,6 +334,17 @@ if ASYNC_AVAILABLE:
             """Close the session."""
             if self.session:
                 await self.session.close()
+
+        @staticmethod
+        def _normalize_search_response(data: Dict[str, Any]) -> Dict[str, Any]:
+            """Add stable aliases for evolving search response shapes."""
+            normalized = dict(data)
+            if "total_count" not in normalized and "totalCount" in normalized:
+                normalized["total_count"] = normalized["totalCount"]
+            if "search_time_ms" not in normalized and "searchTimeMs" in normalized:
+                normalized["search_time_ms"] = normalized["searchTimeMs"]
+            normalized.setdefault("facets", [])
+            return normalized
     
     # Module-level helper functions for concurrent operations
     
@@ -339,4 +414,3 @@ else:
                 "Async support requires 'aiohttp'. "
                 "Install with: pip install grokipedia-api[async]"
             )
-

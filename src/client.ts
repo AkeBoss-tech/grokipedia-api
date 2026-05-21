@@ -74,6 +74,7 @@ export class GrokipediaClient {
 
   static readonly BASE_URL = "https://grokipedia.com";
   static readonly DEFAULT_TIMEOUT = 30000; // 30 seconds
+  static readonly VERSION = "0.3.1";
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = options.baseUrl || GrokipediaClient.BASE_URL;
@@ -84,7 +85,7 @@ export class GrokipediaClient {
       baseURL: this.baseUrl,
       timeout: this.timeout,
       headers: {
-        "User-Agent": "grokipedia-api/0.1.0",
+        "User-Agent": `grokipedia-api/${GrokipediaClient.VERSION}`,
         Accept: "application/json",
       },
     });
@@ -164,7 +165,7 @@ export class GrokipediaClient {
           },
         });
 
-        const result: SearchResponse = response.data;
+        const result: SearchResponse = this.normalizeSearchResponse(response.data);
 
         // Cache result if enabled
         if (this.useCache && this.cache) {
@@ -208,11 +209,9 @@ export class GrokipediaClient {
       }
 
       try {
-        const response = await this.axiosInstance.get("/api/page", {
+        const response = await this.axiosInstance.get("/api/page-preview", {
           params: {
             slug,
-            includeContent: includeContent.toString().toLowerCase(),
-            validateLinks: validateLinks.toString().toLowerCase(),
           },
         });
 
@@ -220,6 +219,10 @@ export class GrokipediaClient {
 
         if (!data.found) {
           throw new GrokipediaNotFoundError(`Page not found: ${slug}`);
+        }
+
+        if (!includeContent) {
+          data.page = { ...data.page, content: "" };
         }
 
         // Cache result if enabled
@@ -254,6 +257,28 @@ export class GrokipediaClient {
   ): Promise<SearchResult[]> {
     const results = await this.search(query, limit);
     return results.results || [];
+  }
+
+  /**
+   * Get typeahead suggestions for a search query
+   */
+  async typeahead(query: string): Promise<SearchResponse> {
+    return this.retry(async () => {
+      const response = await this.axiosInstance.get("/api/typeahead", {
+        params: { query },
+      });
+      return this.normalizeSearchResponse(response.data);
+    });
+  }
+
+  /**
+   * Get Grokipedia-wide aggregate statistics
+   */
+  async getStats(): Promise<Record<string, unknown>> {
+    return this.retry(async () => {
+      const response = await this.axiosInstance.get("/api/stats");
+      return response.data;
+    });
   }
 
   /**
@@ -365,5 +390,14 @@ export class GrokipediaClient {
   close(): void {
     // Axios doesn't require explicit cleanup, but we can clear cache
     this.clearCache();
+  }
+
+  private normalizeSearchResponse(data: SearchResponse): SearchResponse {
+    return {
+      ...data,
+      total_count: data.total_count ?? data.totalCount,
+      search_time_ms: data.search_time_ms ?? data.searchTimeMs,
+      facets: data.facets ?? [],
+    };
   }
 }

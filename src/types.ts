@@ -29,6 +29,8 @@ export interface PageMetadata {
   isRedirect?: boolean;
   redirectTarget?: string;
   isWithheld?: boolean;
+  creationSource?: number;
+  visibility?: number;
 }
 
 export interface PageStats {
@@ -63,11 +65,20 @@ export interface SearchResult {
   viewCount?: string;
   titleHighlights?: string[];
   snippetHighlights?: string[];
+  creationSource?: number;
+  visibility?: number;
+  providers?: number[];
+  snippetVariants?: Array<Record<string, unknown>>;
+  scrollAnchorText?: string;
 }
 
 export interface SearchResponse {
   results: SearchResult[];
+  totalCount?: number;
   total_count?: number;
+  searchTimeMs?: number;
+  search_time_ms?: number;
+  facets?: Array<Record<string, unknown>>;
 }
 
 export interface ClientOptions {
@@ -88,21 +99,21 @@ export interface EditRequest {
   slug: string;
   userId: string;
   status: string;
-  type: string;
+  type: string | number;
   summary: string;
   originalContent: string;
   proposedContent: string;
   sectionTitle: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | number;
+  updatedAt: string | number;
   reviewedBy?: string;
-  reviewedAt?: string;
+  reviewedAt?: string | number;
   reviewReason?: string;
   upvoteCount: number;
   downvoteCount: number;
-  userVote: string;
-  editStartHeader: string;
-  editEndHeader: string;
+  userVote?: string;
+  editStartHeader?: string;
+  editEndHeader?: string;
 }
 
 export interface EditHistoryResponse {

@@ -22,6 +22,7 @@ from .models import (
 from .export import to_markdown, to_json, to_html, to_plain_text, export_to_file
 from .analysis import analyze_page, get_sections, extract_keywords
 from .cache import FileCache
+from .version import __version__
 
 try:
     from .async_client import AsyncGrokipediaClient, search_many, get_many_pages
@@ -70,6 +71,3 @@ if HAS_ASYNC:
 # Add langchain exports if available
 if HAS_LANGCHAIN:
     __all__.extend(["to_langchain_document", "search_to_documents", "get_relevant_citations"])
-
-__version__ = "0.3.0"
-

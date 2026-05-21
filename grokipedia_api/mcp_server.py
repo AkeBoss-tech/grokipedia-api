@@ -64,7 +64,7 @@ if MCP_AVAILABLE:
                     "properties": {
                         "slug": {
                             "type": "string",
-                            "description": "Page slug (e.g., 'United_Petroleum')"
+                            "description": "Page slug (e.g., 'Python_(programming_language)')"
                         },
                         "include_content": {
                             "type": "boolean",

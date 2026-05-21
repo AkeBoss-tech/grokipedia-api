@@ -1,10 +1,12 @@
 """Main client for interacting with Grokipedia API."""
 
+from copy import deepcopy
 import requests
 from typing import List, Dict, Optional, Any
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .exceptions import GrokipediaError, GrokipediaNotFoundError, GrokipediaAPIError, GrokipediaRateLimitError
 from .cache import FileCache
+from .version import __version__
 
 
 class GrokipediaClient:
@@ -18,6 +20,11 @@ class GrokipediaClient:
     """
     
     BASE_URL = "https://grokipedia.com"
+    SEARCH_ENDPOINT = "/api/full-text-search"
+    TYPEAHEAD_ENDPOINT = "/api/typeahead"
+    PAGE_ENDPOINT = "/api/page-preview"
+    EDIT_REQUESTS_ENDPOINT = "/api/list-edit-requests-by-slug"
+    STATS_ENDPOINT = "/api/stats"
     
     def __init__(
         self, 
@@ -38,7 +45,7 @@ class GrokipediaClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'grokipedia-api/0.1.0',
+            'User-Agent': f'grokipedia-api/{__version__}',
             'Accept': 'application/json'
         })
         self.use_cache = use_cache
@@ -71,7 +78,8 @@ class GrokipediaClient:
         Returns:
             Dictionary containing search results with the following keys:
             - results: List of search result dictionaries
-            - total_count: Total number of results (if available)
+            - totalCount: Total number of results from the live API
+            - total_count: Stable alias for totalCount
             
         Raises:
             GrokipediaError: If the search request fails
@@ -83,7 +91,7 @@ class GrokipediaClient:
             if cached is not None:
                 return cached
         
-        url = f"{self.base_url}/api/full-text-search"
+        url = f"{self.base_url}{self.SEARCH_ENDPOINT}"
         params = {
             "query": query,
             "limit": limit,
@@ -98,7 +106,7 @@ class GrokipediaClient:
             if response.status_code == 429:
                 raise GrokipediaRateLimitError("Rate limit exceeded")
                 
-            result = response.json()
+            result = self._normalize_search_response(response.json())
             
             # Cache result if enabled
             if self.use_cache and self.cache:
@@ -132,7 +140,7 @@ class GrokipediaClient:
         Automatically retries on network errors and rate limits.
         
         Args:
-            slug: Page slug (e.g., "United_Petroleum")
+            slug: Page slug (e.g., "Python_(programming_language)")
             include_content: Whether to include full content (default: True)
             validate_links: Whether to validate links (default: True)
         
@@ -158,11 +166,9 @@ class GrokipediaClient:
             if cached is not None:
                 return cached
         
-        url = f"{self.base_url}/api/page"
+        url = f"{self.base_url}{self.PAGE_ENDPOINT}"
         params = {
             "slug": slug,
-            "includeContent": str(include_content).lower(),
-            "validateLinks": str(validate_links).lower()
         }
         
         try:
@@ -174,9 +180,13 @@ class GrokipediaClient:
                 raise GrokipediaRateLimitError("Rate limit exceeded")
                 
             data = response.json()
-            
+
             if not data.get("found", False):
                 raise GrokipediaNotFoundError(f"Page not found: {slug}")
+
+            if not include_content:
+                data = deepcopy(data)
+                data.setdefault("page", {})["content"] = ""
             
             # Cache result if enabled
             if self.use_cache and self.cache:
@@ -192,6 +202,74 @@ class GrokipediaClient:
             raise GrokipediaAPIError(f"API error retrieving page: {e}")
         except requests.exceptions.RequestException as e:
             raise GrokipediaError(f"Request error retrieving page: {e}")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
+    def typeahead(self, query: str) -> Dict[str, Any]:
+        """Get typeahead suggestions for a search query."""
+        if self.use_cache and self.cache:
+            cache_key = f"typeahead:{query}"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        url = f"{self.base_url}{self.TYPEAHEAD_ENDPOINT}"
+        params = {"query": query}
+
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            result = self._normalize_search_response(response.json())
+
+            if self.use_cache and self.cache:
+                self.cache.set(cache_key, result)
+
+            return result
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Typeahead endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error during typeahead: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error during typeahead: {e}")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((GrokipediaError, requests.exceptions.RequestException)),
+        reraise=True
+    )
+    def get_stats(self) -> Dict[str, Any]:
+        """Get aggregate Grokipedia site statistics."""
+        if self.use_cache and self.cache:
+            cache_key = "stats"
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        url = f"{self.base_url}{self.STATS_ENDPOINT}"
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            result = response.json()
+
+            if self.use_cache and self.cache:
+                self.cache.set(cache_key, result)
+
+            return result
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise GrokipediaNotFoundError(f"Stats endpoint not found: {e}")
+            if e.response.status_code == 429:
+                raise GrokipediaRateLimitError("Rate limit exceeded")
+            raise GrokipediaAPIError(f"API error retrieving stats: {e}")
+        except requests.exceptions.RequestException as e:
+            raise GrokipediaError(f"Request error retrieving stats: {e}")
     
     def search_pages(self, query: str, limit: int = 12) -> List[Dict[str, Any]]:
         """Search for pages and return results as a list.
@@ -436,7 +514,7 @@ class GrokipediaClient:
             if cached is not None:
                 return cached
         
-        url = f"{self.base_url}/api/list-edit-requests-by-slug"
+        url = f"{self.base_url}{self.EDIT_REQUESTS_ENDPOINT}"
         params = {
             "slug": slug,
             "limit": limit,
@@ -481,3 +559,13 @@ class GrokipediaClient:
         """Close the session."""
         self.session.close()
 
+    @staticmethod
+    def _normalize_search_response(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add stable aliases for evolving search response shapes."""
+        normalized = dict(data)
+        if "total_count" not in normalized and "totalCount" in normalized:
+            normalized["total_count"] = normalized["totalCount"]
+        if "search_time_ms" not in normalized and "searchTimeMs" in normalized:
+            normalized["search_time_ms"] = normalized["searchTimeMs"]
+        normalized.setdefault("facets", [])
+        return normalized
