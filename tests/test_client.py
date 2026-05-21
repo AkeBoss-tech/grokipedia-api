@@ -1,6 +1,7 @@
 """Tests for GrokipediaClient."""
 
 import pytest
+from unittest.mock import Mock
 from grokipedia_api import GrokipediaClient
 from grokipedia_api.exceptions import GrokipediaError, GrokipediaNotFoundError
 
@@ -24,6 +25,66 @@ def test_context_manager():
         assert client is not None
     # Session should be closed
     assert client.session is not None
+
+
+def test_search_normalizes_live_response_shape():
+    """Search responses should expose stable aliases for live API keys."""
+    client = GrokipediaClient(use_cache=False)
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "results": [{"title": "Python", "slug": "Python", "snippet": "..."}],
+        "totalCount": 123,
+        "searchTimeMs": 12.5,
+        "facets": [],
+    }
+    client.session.get = Mock(return_value=response)
+
+    results = client.search("Python")
+    assert results["totalCount"] == 123
+    assert results["total_count"] == 123
+    assert results["searchTimeMs"] == 12.5
+    assert results["search_time_ms"] == 12.5
+
+
+def test_get_page_uses_page_preview_endpoint():
+    """Page fetches should use the live page-preview endpoint."""
+    client = GrokipediaClient(use_cache=False)
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "found": True,
+        "page": {"slug": "Python_(programming_language)", "title": "Python", "content": "hello"},
+    }
+    client.session.get = Mock(return_value=response)
+
+    page = client.get_page("Python_(programming_language)")
+    assert page["found"] is True
+    called_url = client.session.get.call_args.args[0]
+    assert called_url.endswith("/api/page-preview")
+
+
+def test_typeahead_and_stats_methods():
+    """Convenience methods for new live endpoints should work."""
+    client = GrokipediaClient(use_cache=False)
+
+    typeahead_response = Mock()
+    typeahead_response.raise_for_status.return_value = None
+    typeahead_response.json.return_value = {"results": [], "searchTimeMs": 1.2}
+
+    stats_response = Mock()
+    stats_response.raise_for_status.return_value = None
+    stats_response.json.return_value = {"totalPages": "100"}
+
+    client.session.get = Mock(side_effect=[typeahead_response, stats_response])
+
+    suggestions = client.typeahead("Py")
+    stats = client.get_stats()
+
+    assert suggestions["search_time_ms"] == 1.2
+    assert stats["totalPages"] == "100"
 
 
 def test_search_functionality():
@@ -82,4 +143,3 @@ def test_search_pages():
 
 if __name__ == "__main__":
     pytest.main([__file__])
-

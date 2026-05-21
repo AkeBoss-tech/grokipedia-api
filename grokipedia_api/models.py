@@ -1,14 +1,14 @@
 """Data models for Grokipedia API responses."""
 
 try:
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel, Field, ConfigDict
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
     # Fallback to dataclasses
     from dataclasses import dataclass, field
 
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union
 
 
 if PYDANTIC_AVAILABLE:
@@ -33,6 +33,7 @@ if PYDANTIC_AVAILABLE:
     
     class PageMetadata(BaseModel):
         """Metadata for a Grokipedia page."""
+        model_config = ConfigDict(extra="allow")
         categories: List[str] = Field(default_factory=list)
         lastModified: str = ""
         contentLength: str = ""
@@ -42,6 +43,8 @@ if PYDANTIC_AVAILABLE:
         isRedirect: bool = False
         redirectTarget: str = ""
         isWithheld: bool = False
+        creationSource: Optional[int] = None
+        visibility: Optional[int] = None
     
     class PageStats(BaseModel):
         """Statistics for a Grokipedia page."""
@@ -133,8 +136,24 @@ if PYDANTIC_AVAILABLE:
     
     class SearchResponse(BaseModel):
         """Search response with results."""
+        model_config = ConfigDict(populate_by_name=True, extra="allow")
         results: List[SearchResult]
-        total_count: Optional[int] = None
+        totalCount: Optional[int] = None
+        searchTimeMs: Optional[float] = None
+        facets: List[Dict[str, Any]] = Field(default_factory=list)
+
+        @property
+        def total_count(self) -> Optional[int]:
+            return self.totalCount
+
+        @classmethod
+        def from_dict(cls, data: Dict[str, Any]) -> 'SearchResponse':
+            return cls(
+                results=[SearchResult.from_dict(item) for item in data.get("results", [])],
+                totalCount=data.get("totalCount", data.get("total_count")),
+                searchTimeMs=data.get("searchTimeMs", data.get("search_time_ms")),
+                facets=data.get("facets", []),
+            )
     
     class SupportingEvidence(BaseModel):
         """Represents supporting evidence for an edit request."""
@@ -143,32 +162,41 @@ if PYDANTIC_AVAILABLE:
     
     class EditRequest(BaseModel):
         """Represents an edit request for a Grokipedia page."""
-        supportingEvidence: List[SupportingEvidence] = Field(default_factory=list)
+        model_config = ConfigDict(extra="allow")
+        supportingEvidence: Optional[List[SupportingEvidence]] = None
         id: str
         slug: str
         userId: str
         status: str
-        type: str
-        summary: str
-        originalContent: str
-        proposedContent: str
-        sectionTitle: str
-        createdAt: str
-        updatedAt: str
+        type: Union[str, int]
+        summary: str = ""
+        originalContent: str = ""
+        proposedContent: str = ""
+        sectionTitle: str = ""
+        createdAt: Union[str, int]
+        updatedAt: Union[str, int]
         reviewedBy: Optional[str] = None
-        reviewedAt: Optional[str] = None
+        reviewedAt: Optional[Union[str, int]] = None
         reviewReason: Optional[str] = None
         upvoteCount: int = 0
         downvoteCount: int = 0
-        userVote: str = "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"
-        editStartHeader: str
-        editEndHeader: str
+        userVote: Optional[str] = None
+        editStartHeader: Optional[str] = None
+        editEndHeader: Optional[str] = None
     
     class EditHistoryResponse(BaseModel):
         """Response containing edit history for a page."""
         editRequests: List[EditRequest] = Field(default_factory=list)
         totalCount: int = 0
         hasMore: bool = False
+
+        @classmethod
+        def from_dict(cls, data: Dict[str, Any]) -> 'EditHistoryResponse':
+            return cls(
+                editRequests=[EditRequest(**item) for item in data.get("editRequests", [])],
+                totalCount=data.get("totalCount", 0),
+                hasMore=data.get("hasMore", False),
+            )
 
 else:
     # Fallback to dataclasses when Pydantic is not available
@@ -300,37 +328,52 @@ else:
     class SearchResponse:
         """Search response with results."""
         results: List[SearchResult]
-        total_count: Optional[int] = None
+        totalCount: Optional[int] = None
+        searchTimeMs: Optional[float] = None
+        facets: List[Dict[str, Any]] = field(default_factory=list)
+
+        @property
+        def total_count(self) -> Optional[int]:
+            return self.totalCount
+
+        @classmethod
+        def from_dict(cls, data: Dict[str, Any]) -> 'SearchResponse':
+            return cls(
+                results=[SearchResult.from_dict(item) for item in data.get("results", [])],
+                totalCount=data.get("totalCount", data.get("total_count")),
+                searchTimeMs=data.get("searchTimeMs", data.get("search_time_ms")),
+                facets=data.get("facets", []),
+            )
     
     @dataclass
     class SupportingEvidence:
         """Represents supporting evidence for an edit request."""
         url: Optional[str] = None
         description: Optional[str] = None
-    
+
     @dataclass
     class EditRequest:
         """Represents an edit request for a Grokipedia page."""
-        supporting_evidence: List['SupportingEvidence'] = field(default_factory=list)
-        id: str
-        slug: str
-        user_id: str
-        status: str
-        type: str
-        summary: str
-        original_content: str
-        proposed_content: str
-        section_title: str
-        created_at: str
-        updated_at: str
+        id: str = ""
+        slug: str = ""
+        user_id: str = ""
+        status: str = ""
+        type: Union[str, int] = ""
+        summary: str = ""
+        original_content: str = ""
+        proposed_content: str = ""
+        section_title: str = ""
+        created_at: Union[str, int] = ""
+        updated_at: Union[str, int] = ""
         reviewed_by: Optional[str] = None
-        reviewed_at: Optional[str] = None
+        reviewed_at: Optional[Union[str, int]] = None
         review_reason: Optional[str] = None
         upvote_count: int = 0
         downvote_count: int = 0
-        user_vote: str = "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"
-        edit_start_header: str
-        edit_end_header: str
+        user_vote: Optional[str] = None
+        edit_start_header: Optional[str] = None
+        edit_end_header: Optional[str] = None
+        supporting_evidence: List['SupportingEvidence'] = field(default_factory=list)
         
         @classmethod
         def from_dict(cls, data: Dict[str, Any]) -> 'EditRequest':
@@ -364,9 +407,9 @@ else:
                 review_reason=data.get("reviewReason"),
                 upvote_count=data.get("upvoteCount", 0),
                 downvote_count=data.get("downvoteCount", 0),
-                user_vote=data.get("userVote", "EDIT_REQUEST_VOTE_TYPE_UNSPECIFIED"),
-                edit_start_header=data.get("editStartHeader", ""),
-                edit_end_header=data.get("editEndHeader", "")
+                user_vote=data.get("userVote"),
+                edit_start_header=data.get("editStartHeader"),
+                edit_end_header=data.get("editEndHeader")
             )
     
     @dataclass

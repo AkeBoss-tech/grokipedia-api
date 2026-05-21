@@ -94,7 +94,7 @@ def main(args: Optional[list] = None):
 Examples:
   %(prog)s search "Python programming"
   %(prog)s search "machine learning" --limit 20
-  %(prog)s get "United_Petroleum" --citations
+  %(prog)s get "Python_(programming_language)" --citations
   %(prog)s get "Python_(programming_language)" --full
         """
     )
@@ -112,7 +112,7 @@ Examples:
     
     # Get page command
     get_parser = subparsers.add_parser('get', help='Get a specific page by slug')
-    get_parser.add_argument('slug', help='Page slug (e.g., "United_Petroleum")')
+    get_parser.add_argument('slug', help='Page slug (e.g., "Python_(programming_language)")')
     get_parser.add_argument('--content', action='store_true', default=True, help='Include full content (default: True)')
     get_parser.add_argument('--no-content', dest='content', action='store_false', help='Exclude content')
     get_parser.add_argument('--validate-links', action='store_true', default=True, help='Validate links (default: True)')
@@ -135,4 +135,3 @@ Examples:
 
 if __name__ == "__main__":
     main()
-
