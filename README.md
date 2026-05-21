@@ -218,7 +218,7 @@ Get a specific page by its slug.
 **Parameters:**
 - `slug` (str): Page slug (e.g., "Python_(programming_language)")
 - `include_content` (bool): Whether to include full content (default: True)
-- `validate_links` (bool): Whether to validate links (default: True)
+- `validate_links` (bool): Backward-compatible parameter retained for API stability; currently ignored by the live `page-preview` endpoint
 
 **Returns:**
 - Dictionary containing:
@@ -228,6 +228,25 @@ Get a specific page by its slug.
 **Example:**
 ```python
 page = client.get_page("Python_(programming_language)")
+```
+
+**`typeahead(query)`**
+
+Get fast typeahead suggestions from the live Grokipedia API.
+
+**Example:**
+```python
+suggestions = client.typeahead("Pyth")
+```
+
+**`get_stats()`**
+
+Get aggregate Grokipedia site statistics.
+
+**Example:**
+```python
+stats = client.get_stats()
+print(stats["totalPages"])
 ```
 
 **`search_pages(query, limit=12)`**
@@ -344,7 +363,7 @@ async function main() {
   try {
     // Search with pagination
     const results = await client.search('machine learning', 20, 0);
-    console.log(`Total results: ${results.total_count || 'unknown'}`);
+    console.log(`Total results: ${results.totalCount ?? results.total_count ?? 'unknown'}`);
     
     for (const result of results.results) {
       console.log(`- ${result.title}`);

@@ -44,6 +44,25 @@ describe('GrokipediaClient', () => {
   });
 
   describe('Search', () => {
+    it('should normalize live search response aliases', async () => {
+      const mockGet = jest.spyOn((client as any).axiosInstance, 'get').mockResolvedValue({
+        data: {
+          results: [{ title: 'Python', slug: 'Python', snippet: '...' }],
+          totalCount: 123,
+          searchTimeMs: 7.4,
+          facets: [],
+        },
+      } as any);
+
+      const results = await client.search('Python', 1);
+      expect(results.totalCount).toBe(123);
+      expect(results.total_count).toBe(123);
+      expect(results.searchTimeMs).toBe(7.4);
+      expect(results.search_time_ms).toBe(7.4);
+
+      mockGet.mockRestore();
+    });
+
     it('should search for articles', async () => {
       const results = await client.search('Python', 3);
       expect(results).toHaveProperty('results');
@@ -64,6 +83,23 @@ describe('GrokipediaClient', () => {
   });
 
   describe('Get Page', () => {
+    it('should use the live page-preview endpoint', async () => {
+      const mockGet = jest.spyOn((client as any).axiosInstance, 'get').mockResolvedValue({
+        data: {
+          found: true,
+          page: { slug: 'Python_(programming_language)', title: 'Python', content: 'content' },
+        },
+      } as any);
+
+      const page = await client.getPage('Python_(programming_language)', true);
+      expect(page.found).toBe(true);
+      expect(mockGet).toHaveBeenCalledWith('/api/page-preview', {
+        params: { slug: 'Python_(programming_language)' },
+      });
+
+      mockGet.mockRestore();
+    });
+
     it('should get a page by slug', async () => {
       const page = await client.getPage('Python_(programming_language)', true);
       expect(page).toHaveProperty('page');
@@ -115,6 +151,36 @@ describe('GrokipediaClient', () => {
         expect(typeof editRequest.slug).toBe('string');
       }
     }, 30000);
+  });
+
+  describe('New Endpoints', () => {
+    it('should support typeahead', async () => {
+      const mockGet = jest.spyOn((client as any).axiosInstance, 'get').mockResolvedValue({
+        data: {
+          results: [{ title: 'Python', slug: 'Python_programming_language', snippet: '...' }],
+          searchTimeMs: 2.1,
+        },
+      } as any);
+
+      const results = await client.typeahead('Pyth');
+      expect(results.results[0].slug).toBe('Python_programming_language');
+      expect(results.search_time_ms).toBe(2.1);
+      expect(mockGet).toHaveBeenCalledWith('/api/typeahead', { params: { query: 'Pyth' } });
+
+      mockGet.mockRestore();
+    });
+
+    it('should support getStats', async () => {
+      const mockGet = jest.spyOn((client as any).axiosInstance, 'get').mockResolvedValue({
+        data: { totalPages: '100', totalViews: '0' },
+      } as any);
+
+      const stats = await client.getStats();
+      expect(stats).toHaveProperty('totalPages', '100');
+      expect(mockGet).toHaveBeenCalledWith('/api/stats');
+
+      mockGet.mockRestore();
+    });
   });
 
   describe('Cache Management', () => {
