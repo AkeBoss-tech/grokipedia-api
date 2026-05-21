@@ -155,7 +155,7 @@ except Exception as e:
 ## Next Steps
 
 1. **Read the docs:**
-   - [README.md](README.md) - Main documentation
+   - [README.md](../README.md) - Main documentation
    - [USAGE.md](USAGE.md) - Detailed usage guide
    - [MCP_SERVER.md](MCP_SERVER.md) - MCP integration
 
@@ -187,4 +187,3 @@ except Exception as e:
 - Read the inline documentation
 
 Happy coding! 🚀
-

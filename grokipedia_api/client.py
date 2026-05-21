@@ -256,7 +256,7 @@ class GrokipediaClient:
         try:
             response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
-            result = response.json()
+            result = self._normalize_search_response(response.json())
 
             if self.use_cache and self.cache:
                 self.cache.set(cache_key, result)
@@ -338,7 +338,7 @@ class GrokipediaClient:
             if response.status_code == 429:
                 raise GrokipediaRateLimitError("Rate limit exceeded")
                 
-            result = response.json()
+            result = self._normalize_search_response(response.json())
             
             # Cache result if enabled
             if self.use_cache and self.cache:

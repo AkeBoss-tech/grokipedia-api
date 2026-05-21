@@ -168,7 +168,7 @@ For AI agent integrations:
 grokipedia-mcp
 ```
 
-The server exposes tools for searching and retrieving Grokipedia content via the Model Context Protocol. See [MCP_SERVER.md](MCP_SERVER.md) for detailed documentation.
+The server exposes tools for searching and retrieving Grokipedia content via the Model Context Protocol. See [MCP_SERVER.md](docs/MCP_SERVER.md) for detailed documentation.
 
 #### Command Line Interface
 
